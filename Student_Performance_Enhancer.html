@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Z-Score Standardization Tool</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent-primary: #6366f1;
+            --accent-hover: #4f46e5;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --success-color: #10b981;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 2rem;
+            letter-spacing: -0.025em;
+            background: linear-gradient(to right, #a5b4fc, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            color: #c7d2fe;
+            margin-top: 0;
+            margin-bottom: 1.2rem;
+            font-weight: 600;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.2rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        input, textarea {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: var(--text-main);
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.85rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .table-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+        }
+
+        .table-wrapper {
+            max-height: 350px;
+            overflow-y: auto;
+            margin-top: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        .results-table th {
+            background: #1e1b4b;
+            color: #c7d2fe;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .results-table th, .results-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .metrics-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .metric-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .metric-val {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--success-color);
+            margin-top: 0.25rem;
+        }
+
+        .hint-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Z-Score Standardization Curve Tool</h1>
+
+    <!-- Parameters Setup Section -->
+    <div class="section">
+        <p class="section-title">1. Target Distribution Metrics & Scale Configuration</p>
+        <div class="grid-3">
+            <div class="form-group">
+                <label for="maxPoints">Total Possible Marks (Scale)</label>
+                <input type="number" id="maxPoints" value="100" step="1" min="1" onchange="updateScaleConstraints()">
+            </div>
+            <div class="form-group">
+                <label for="targetMean">Desired Target Average</label>
+                <input type="number" id="targetMean" value="75.0" step="0.1" min="0">
+            </div>
+            <div class="form-group">
+                <label for="targetSD">Desired Target Spread (SD)</label>
+                <input type="number" id="targetSD" value="10.0" step="0.1" min="0.1">
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Entry Box Section -->
+    <div class="section">
+        <p class="section-title">2. Paste Data Values</p>
+        <div class="form-group">
+            <label for="bulkScores">Paste Raw Student Scores below:</label>
+            <textarea id="bulkScores" rows="6" placeholder="Paste your Excel column here directly..."></textarea>
+            <span class="hint-text">Accepts numeric values broken down by spaces, tabs, commas, or new lines.</span>
+        </div>
+    </div>
+
+    <button class="btn" style="width: 100%;" onclick="executeStandardization()">Calculate Curve Matrix</button>
+
+    <!-- Output Panel Area -->
+    <div id="outputPanel" class="hidden">
+        <div class="section" style="margin-top: 2rem;">
+            <div class="table-header-flex">
+                <p class="section-title" style="margin: 0;">3. Z-Score Mapping Calculations (<span id="outStudentCount">0</span> Values Processed)</p>
+                <button class="btn btn-secondary" id="copyBtn" onclick="copyResultsToClipboard()">Copy New Scores</button>
+            </div>
+            
+            <div class="table-wrapper">
+                <table class="results-table" id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>Raw Input Score</th>
+                            <th>Calculated Z-Score</th>
+                            <th>Standardized New Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                        <!-- Dynamic Rows Insertion -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="metrics-summary">
+                <div class="metric-card">
+                    <label>Original Sample Mean</label>
+                    <div class="metric-val" id="outRawMean">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <label>Original Standard Dev</label>
+                    <div class="metric-val" id="outRawSD">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <label>Standardized New Mean</label>
+                    <div class="metric-val" id="outNewMean">0.00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let finalScoresOnlyData = "";
+
+    function updateScaleConstraints() {
+        const maxPoints = parseFloat(document.getElementById('maxPoints').value) || 100;
+        document.getElementById('targetMean').value = (maxPoints * 0.75).toFixed(1);
+        document.getElementById('targetSD').value = (maxPoints * 0.10).toFixed(1);
+    }
+
+    function executeStandardization() {
+        const maxPoints = parseFloat(document.getElementById('maxPoints').value) || 100;
+        const targetMean = parseFloat(document.getElementById('targetMean').value) || 0;
+        const targetSD = parseFloat(document.getElementById('targetSD').value) || 1;
+        
+        const rawText = document.getElementById('bulkScores').value;
+        const tokens = rawText.trim().split(/[\s,]+/);
+        let originalScores = [];
+
+        tokens.forEach(token => {
+            if (token.trim() !== "") {
+                let val = parseFloat(token);
+                if (!isNaN(val)) {
+                    if (val > maxPoints) val = maxPoints;
+                    if (val < 0) val = 0;
+                    originalScores.push(val);
+                }
+            }
+        });
+
+        const numStudents = originalScores.length;
+        if (numStudents === 0) {
+            alert("No valid numerical inputs detected. Please check your data paste window.");
+            return;
+        }
+
+        // Calculate Mean
+        let sumBefore = 0;
+        for (let i = 0; i < numStudents; i++) {
+            sumBefore += originalScores[i];
+        }
+        const avgBefore = sumBefore / numStudents;
+
+        // Calculate Standard Deviation
+        let varianceSum = 0;
+        for (let i = 0; i < numStudents; i++) {
+            varianceSum += Math.pow(originalScores[i] - avgBefore, 2);
+        }
+        let stdDeviation = Math.sqrt(varianceSum / numStudents);
+        const actualSDForDisplay = stdDeviation;
+
+        if (stdDeviation === 0) {
+            stdDeviation = 1.0;
+        }
+
+        const resultsBody = document.getElementById('resultsBody');
+        resultsBody.innerHTML = "";
+        
+        let sumAfter = 0;
+        
+        // Reset the clipboard string completely blank (No Headers!)
+        finalScoresOnlyData = "";
+
+        for (let i = 0; i < numStudents; i++) {
+            const zScore = (originalScores[i] - avgBefore) / stdDeviation;
+            let finalScore = targetMean + (zScore * targetSD);
+
+            if (finalScore > maxPoints) finalScore = maxPoints;
+            if (finalScore < 0.0) finalScore = 0.0;
+
+            sumAfter += finalScore;
+
+            // Interface Row Creation (Kept complete for on-screen tracking)
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${originalScores[i].toFixed(1)}</td>
+                <td>${zScore.toFixed(2)}</td>
+                <td style="font-weight:600; color:#a5b4fc;">${finalScore.toFixed(1)}</td>
+            `;
+            resultsBody.appendChild(tr);
+
+            // ONLY extract the final calculated score value followed by a new line break
+            finalScoresOnlyData += `${finalScore.toFixed(1)}\n`;
+        }
+
+        const avgAfter = sumAfter / numStudents;
+        document.getElementById('outStudentCount').innerText = numStudents;
+        document.getElementById('outRawMean').innerText = avgBefore.toFixed(2);
+        document.getElementById('outRawSD').innerText = actualSDForDisplay.toFixed(2);
+        document.getElementById('outNewMean').innerText = avgAfter.toFixed(2);
+
+        document.getElementById('outputPanel').classList.remove('hidden');
+        document.getElementById('copyBtn').innerText = "Copy New Scores";
+    }
+
+    function copyResultsToClipboard() {
+        if (!finalScoresOnlyData) return;
+        
+        navigator.clipboard.writeText(finalScoresOnlyData.trim()).then(() => {
+            const copyBtn = document.getElementById('copyBtn');
+            copyBtn.innerText = "Copied! ✓";
+            setTimeout(() => {
+                copyBtn.innerText = "Copy New Scores";
+            }, 2500);
+        }).catch(err => {
+            alert("Clipboard error: " + err);
+        });
+    }
+</script>
+</body>
+</html>
