@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bulk Z-Score Standardization Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
@@ -14,6 +15,7 @@
             --text-muted: #94a3b8;
             --border-color: rgba(255, 255, 255, 0.1);
             --success-color: #10b981;
+            --warning-color: #38bdf8;
         }
 
         body {
@@ -141,7 +143,7 @@
         }
 
         .table-wrapper {
-            max-height: 350px;
+            max-height: 180px;
             overflow-y: auto;
             margin-top: 1rem;
             border: 1px solid var(--border-color);
@@ -191,6 +193,32 @@
             margin-top: 0.25rem;
         }
 
+        #outRawMean {
+            color: var(--warning-color);
+        }
+
+        /* Twin Graph Container System */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+            margin-top: 1.5rem;
+        }
+
+        .chart-wrapper-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            height: 260px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .hint-text {
             font-size: 0.8rem;
             color: var(--text-muted);
@@ -207,7 +235,6 @@
 <div class="container">
     <h1>Z-Score Standardization Curve Tool</h1>
 
-    <!-- Parameters Setup Section -->
     <div class="section">
         <p class="section-title">1. Target Distribution Metrics & Scale Configuration</p>
         <div class="grid-3">
@@ -226,7 +253,6 @@
         </div>
     </div>
 
-    <!-- Data Entry Box Section -->
     <div class="section">
         <p class="section-title">2. Paste Data Values</p>
         <div class="form-group">
@@ -238,7 +264,6 @@
 
     <button class="btn" style="width: 100%;" onclick="executeStandardization()">Calculate Curve Matrix</button>
 
-    <!-- Output Panel Area -->
     <div id="outputPanel" class="hidden">
         <div class="section" style="margin-top: 2rem;">
             <div class="table-header-flex">
@@ -256,8 +281,7 @@
                         </tr>
                     </thead>
                     <tbody id="resultsBody">
-                        <!-- Dynamic Rows Insertion -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
 
@@ -275,12 +299,24 @@
                     <div class="metric-val" id="outNewMean">0.00</div>
                 </div>
             </div>
+
+            <div class="charts-grid">
+                <div class="chart-wrapper-card">
+                    <canvas id="rawCurveChart"></canvas>
+                </div>
+                <div class="chart-wrapper-card">
+                    <canvas id="newCurveChart"></canvas>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
 <script>
     let finalScoresOnlyData = "";
+    let rawChartInstance = null;
+    let newChartInstance = null;
 
     function updateScaleConstraints() {
         const maxPoints = parseFloat(document.getElementById('maxPoints').value) || 100;
@@ -337,9 +373,10 @@
         resultsBody.innerHTML = "";
         
         let sumAfter = 0;
-        
-        // Reset the clipboard string completely blank (No Headers!)
         finalScoresOnlyData = "";
+        
+        let rawListForGraph = [];
+        let newListForGraph = [];
 
         for (let i = 0; i < numStudents; i++) {
             const zScore = (originalScores[i] - avgBefore) / stdDeviation;
@@ -350,7 +387,6 @@
 
             sumAfter += finalScore;
 
-            // Interface Row Creation (Kept complete for on-screen tracking)
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${originalScores[i].toFixed(1)}</td>
@@ -359,8 +395,11 @@
             `;
             resultsBody.appendChild(tr);
 
-            // ONLY extract the final calculated score value followed by a new line break
             finalScoresOnlyData += `${finalScore.toFixed(1)}\n`;
+            
+            // Push values into sorting arrays
+            rawListForGraph.push(originalScores[i]);
+            newListForGraph.push(finalScore);
         }
 
         const avgAfter = sumAfter / numStudents;
@@ -371,6 +410,66 @@
 
         document.getElementById('outputPanel').classList.remove('hidden');
         document.getElementById('copyBtn').innerText = "Copy New Scores";
+
+        // Sort both datasets explicitly from Lowest to Highest
+        rawListForGraph.sort((a, b) => a - b);
+        newListForGraph.sort((a, b) => a - b);
+
+        // Map labels to index numbers
+        const labels = rawListForGraph.map((_, idx) => `Pos ${idx + 1}`);
+
+        // Build both independent curves
+        renderIndividualCurve('rawCurveChart', rawChartInstance, labels, rawListForGraph, 'Original Scores Progression', '#38bdf8', 'rgba(56, 189, 248, 0.05)', maxPoints, instance => rawChartInstance = instance);
+        renderIndividualCurve('newCurveChart', newChartInstance, labels, newListForGraph, 'Standardized New Scores', '#10b981', 'rgba(16, 185, 129, 0.05)', maxPoints, instance => newChartInstance = instance);
+    }
+
+    function renderIndividualCurve(canvasId, chartInstance, labels, dataPoints, title, lineHex, fillHex, maxScale, setInstance) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        const newInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: title,
+                    data: dataPoints.map(v => v.toFixed(1)),
+                    borderColor: lineHex,
+                    backgroundColor: fillHex,
+                    borderWidth: 2.5,
+                    tension: 0.35, // Gives it a smooth curved arc from lowest to highest
+                    pointRadius: dataPoints.length > 50 ? 0 : 2, // Hides clutter points on massive data lists
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: '#f8fafc', font: { weight: '600' } }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: maxScale,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#94a3b8' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { display: false } // Kept hidden for clean progress curve rendering
+                    }
+                }
+            }
+        });
+
+        setInstance(newInstance);
     }
 
     function copyResultsToClipboard() {
