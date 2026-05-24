@@ -95,9 +95,7 @@ This prevents:
 
 All outputs are clamped safely between:
 
-[
-0 \leq \text{Final Score} \leq \text{Maximum Possible Marks}
-]
+0 ≤ Final Score ≤ Maximum Possible Marks
 
 ---
 
@@ -144,27 +142,25 @@ The system first evaluates the full dataset to determine the original distributi
 
 ### Population Mean
 
-\mu = \frac{\sum x}{N}
+Mean = (Sum of all scores) / N
 
 Where:
 
-* ( \mu ) = original dataset mean
-* ( x ) = each raw score
-* ( N ) = total number of scores
+* Mean = original dataset average
+* x = each raw score
+* N = total number of scores
 
 ---
 
 ### Population Standard Deviation
 
-\sigma = \sqrt{\frac{\sum (x-\mu)^2}{N}}
+SD = Square Root of [ Sum of (x − Mean)² / N ]
 
 This measures how widely the original scores are distributed around the average.
 
-If all values are identical and the variance collapses to zero, the engine safely substitutes:
+If all values are identical and the variance becomes zero, the engine safely substitutes:
 
-[
-\sigma = 1
-]
+SD = 1
 
 to prevent division-by-zero failures during standardization.
 
@@ -174,7 +170,7 @@ to prevent division-by-zero failures during standardization.
 
 Each raw score is converted into a relative standardized position.
 
-genui{"math_block_widget_always_prefetch_v2":{"content":"z = \frac{x-\mu}{\sigma}"}}
+Z-Score = (x − Mean) / SD
 
 This stage determines how many standard deviations each student lies above or below the original class average.
 
@@ -186,12 +182,12 @@ The transformation preserves ranking structure while removing dependency on the 
 
 The calculated Z-scores are projected into a new grading distribution using the desired target mean and target spread.
 
-x_{new} = \mu_t + z\sigma_t
+New Score = Target Mean + (Z-Score × Target SD)
 
 Where:
 
-* ( \mu_t ) = target average
-* ( \sigma_t ) = target standard deviation
+* Target Mean = desired standardized average
+* Target SD = desired standardized spread
 
 The result is then clamped to the configured grading limits.
 
@@ -429,7 +425,7 @@ The processed scores are copied instantly in clean line-separated format for dir
 
 # Design Philosophy
 
-This tool was built around three principles:
+This tool was built around three principles.
 
 ## Statistical Transparency
 
